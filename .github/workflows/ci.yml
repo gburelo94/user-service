@@ -77,7 +77,7 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}:/src" \
             owasp/dependency-check:latest \
-            ls -la /src
+            ls -la /src && ls -la /src/user-service
 
       - name: Prepare dependency-check dirs
         run: |
@@ -97,6 +97,13 @@ jobs:
 
       - name: Run OWASP Dependency-Check (Docker) - scan user-service
         run: |
+          if [ -d "${{ github.workspace }}/user-service" ]; then
+            echo "Iniciando el escaneo del directorio: /src/user-service"
+          else
+            echo "No se encontró el directorio user-service, abortando"
+            exit 1
+          fi
+
           docker run --rm \
             -v "${{ github.workspace }}:/src" \
             -v "${{ github.workspace }}/dependency-check-data:/usr/share/dependency-check/data" \
@@ -107,7 +114,7 @@ jobs:
             --format ALL \
             --out /report
 
-      - name: Upload dependency-check report artifact
+      - name: Upload dependency-check report artifact (optional)
         uses: actions/upload-artifact@v4
         with:
           name: dependency-check-report
