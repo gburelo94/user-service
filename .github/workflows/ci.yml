@@ -3,9 +3,9 @@ name: CI
 on:
   workflow_dispatch:
   push:
-    branches: [ master, develop ]
+    branches: [ master, main, develop ]
   pull_request:
-    branches: [ master, develop ]
+    branches: [ master, main, develop ]
 
 jobs:
   build:
@@ -49,8 +49,8 @@ jobs:
     steps:
       - name: Verify src directory locally (debugging)
         run: |
-          echo "Validando localmente en el host"
-          ls -la ${{ github.workspace }}/
+          echo "Validando localmente en el host:"
+          ls -la ${{ github.workspace }}
           ls -la ${{ github.workspace }}/src || echo "Todo bien: src encontrado"
 
       - name: Prepare dependency-check dirs
@@ -69,7 +69,7 @@ jobs:
       - name: Pull OWASP Dependency-Check Docker image
         run: docker pull owasp/dependency-check:latest
 
-      - name: Run OWASP Dependency-Check (Docker)
+      - name: Run OWASP Dependency-Check (Fail on High/CRITICAL Vulnerabilities)
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/src" \
@@ -79,6 +79,7 @@ jobs:
             --scan "/src" \
             --project "microservices-springboot" \
             --format ALL \
+            --failOnCVSS 7.0 \
             --out /report
 
       - name: Upload dependency-check report artifact
