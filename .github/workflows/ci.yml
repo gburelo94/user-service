@@ -71,6 +71,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache dependency-check data
+        uses: actions/cache@v4
+        with:
+          path: dependency-check-data
+          key: ${{ runner.os }}-depcheck-${{ hashFiles('**/gradle-wrapper.properties','**/*.gradle*','**/build.gradle*') }}
+          restore-keys: |
+            ${{ runner.os }}-depcheck-
+
       - name: Prepare dependency-check dirs
         run: |
           mkdir -p ./dependency-check-data
@@ -79,17 +87,18 @@ jobs:
       - name: Pull OWASP Dependency-Check Docker image
         run: docker pull owasp/dependency-check:latest
 
-      - name: Run OWASP Dependency-Check (Docker)
+      - name: Run OWASP Dependency-Check (Docker) - scan only user-service
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/src" \
             -v "${{ github.workspace }}/dependency-check-data:/usr/share/dependency-check/data" \
             -v "${{ github.workspace }}/build/reports/dependency-check:/report" \
             owasp/dependency-check:latest \
-            --scan /src \
+            --scan /src/user-service \
             --project "microservices-springboot-user-service" \
             --format ALL \
             --out /report
+
       - name: Upload dependency-check report artifact (optional)
         uses: actions/upload-artifact@v4
         with:
