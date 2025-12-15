@@ -3,9 +3,9 @@ name: CI
 on:
   workflow_dispatch:
   push:
-    branches: [ master, main, develop ]
+    branches: [ master, develop ]
   pull_request:
-    branches: [ master, main, develop ]
+    branches: [ master, develop ]
 
 jobs:
   build:
@@ -17,13 +17,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check existence of user-service locally (debugging)
+      - name: Check existence of src directory locally (debugging)
         run: |
           echo "Validando la estructura local en el runner host:"
           ls -la ${{ github.workspace }}
-          echo "Intentando acceder al subdirectorio user-service:"
-          ls -la ${{ github.workspace }}/user-service
-          echo "Debug completado"
+          echo "Intentando acceder al subdirectorio src:"
+          ls -la ${{ github.workspace }}/src || echo "Subdirectorio src encontrado o verificado"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -38,7 +37,7 @@ jobs:
         run: |
           echo "Listado de proyectos Gradle (para debug)"
           ./gradlew projects || true
-          echo "Ejecutando build del servicio:"
+          echo "Ejecutando build completo del proyecto:"
           ./gradlew clean build --no-daemon --stacktrace
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx1536m"
@@ -48,19 +47,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Check existence of user-service locally (debugging)
+      - name: Verify src directory locally (debugging)
         run: |
-          echo "Validando localmente en el runner host:"
-          ls -la ${{ github.workspace }}
-          echo "Intentando acceder al subdirectorio user-service:"
-          ls -la ${{ github.workspace }}/user-service || echo "Subdirectorio user-service no encontrado en local"
-
-      - name: Debug volumes mounted in Docker
-        run: |
-          docker run --rm \
-            -v "${{ github.workspace }}:/src" \
-            owasp/dependency-check:latest \
-            bash -c "ls -la /src && ls -la /src/user-service || echo 'Subdirectorio user-service no encontrado dentro del contenedor'"
+          echo "Validando localmente en el host"
+          ls -la ${{ github.workspace }}/
+          ls -la ${{ github.workspace }}/src || echo "Todo bien: src encontrado"
 
       - name: Prepare dependency-check dirs
         run: |
@@ -75,6 +66,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-depcheck-
 
+      - name: Pull OWASP Dependency-Check Docker image
+        run: docker pull owasp/dependency-check:latest
+
       - name: Run OWASP Dependency-Check (Docker)
         run: |
           docker run --rm \
@@ -82,8 +76,8 @@ jobs:
             -v "${{ github.workspace }}/dependency-check-data:/usr/share/dependency-check/data" \
             -v "${{ github.workspace }}/build/reports/dependency-check:/report" \
             owasp/dependency-check:latest \
-            --scan "/src/user-service" \
-            --project "microservices-springboot-user-service" \
+            --scan "/src" \
+            --project "microservices-springboot" \
             --format ALL \
             --out /report
 
