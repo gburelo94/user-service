@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: build
+    name: Build and Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -23,44 +23,35 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Grant execute for gradlew
+      - name: Grant permissions for gradlew
         run: chmod +x ./gradlew || true
 
-      - name: Build (Gradle)
-        run: |
-          echo "Listado de proyectos Gradle (para debug)"
-          ./gradlew clean build --no-daemon --stacktrace
+      - name: Build the project
+        run: ./gradlew clean build --no-daemon --stacktrace
         env:
-          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx1536m"
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2g"
 
   dependency-check:
-    name: dependency-check
+    name: OWASP Dependency-Check
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Verify src directory locally
-        run: ls -la ${{ github.workspace }}
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Prepare dependency-check dirs
         run: |
+          echo "Preparando directorios para OWASP Dependency-Check"
           mkdir -p ./dependency-check-data
           mkdir -p ./build/reports/dependency-check
 
-      - name: Clean Dependency-Check Cache (Force Fresh Updates)
-        run: rm -rf ./dependency-check-data
+      - name: Clean Dependency-Check Cache (Force Reset)
+        run: |
+          echo "Eliminando el directorio dependency-check-data para evitar conflictos..."
+          rm -rf ./dependency-check-data
 
       - name: Pull OWASP Dependency-Check Docker image
         run: docker pull owasp/dependency-check:latest
-
-      - name: Check permissions of mounted directories (debugging)
-        run: |
-          echo "Validando permisos de montajes para debug"
-          docker run --rm \
-            -v "${{ github.workspace }}:/src" \
-            -v "${{ github.workspace }}/dependency-check-data:/usr/share/dependency-check/data" \
-            -v "${{ github.workspace }}/build/reports/dependency-check:/report" \
-            owasp/dependency-check:latest \
-            bash -c "ls -ld /usr/share/dependency-check/data && ls -ld /src"
 
       - name: Run OWASP Dependency-Check
         run: |
@@ -70,10 +61,11 @@ jobs:
             -v "${{ github.workspace }}/build/reports/dependency-check:/report" \
             owasp/dependency-check:latest \
             --scan "/src" \
+            --project "microservices-springboot" \
             --failOnCVSS 7.0 \
             --out /report
 
-      - name: Upload dependency-check report artifact
+      - name: Upload dependency-check report
         uses: actions/upload-artifact@v4
         with:
           name: dependency-check-report
