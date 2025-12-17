@@ -62,12 +62,13 @@ jobs:
           echo "Verificando la existencia del script de inicio..."
           find dependency-check-cli -name "dependency-check.sh"
 
-          chmod +x dependency-check-cli/bin/dependency-check.sh
+          echo "Aplicando permisos al script de inicio..."
+          chmod +x dependency-check-cli/dependency-check/bin/dependency-check.sh
 
       - name: Run OWASP Dependency-Check CLI
         run: |
           echo "Ejecutando OWASP Dependency-Check..."
-          ./dependency-check-cli/bin/dependency-check.sh \
+          ./dependency-check-cli/dependency-check/bin/dependency-check.sh \
             --scan "./src" \
             --failOnCVSS 7.0 \
             --format ALL \
