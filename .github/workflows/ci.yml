@@ -42,13 +42,25 @@ jobs:
           echo "Descargando e instalando Trivy con el script oficial..."
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
 
+      - name: List build directory contents
+        run: |
+          echo "Listando archivos bajo ./build..."
+          find ./build -type f
+
       - name: Run Trivy Vulnerability Scan
         run: |
-          echo "Ejecutando Trivy en el proyecto..."
-          trivy fs --scanners vuln --severity CRITICAL,HIGH ./src | tee trivy-report.txt
+          echo "Ejecutando Trivy en ./build..."
+          trivy fs --scanners vuln --severity CRITICAL,HIGH ./build | tee trivy-report.txt
 
-      - name: Upload Trivy Report
+      - name: Run Trivy Vulnerability Scan on Gradle Config
+        run: |
+          echo "Analizando dependencias basadas en build.gradle..."
+          trivy fs --scanners vuln --severity CRITICAL,HIGH --language-specific ./build.gradle | tee trivy-gradle-report.txt
+
+      - name: Upload Trivy Reports
         uses: actions/upload-artifact@v4
         with:
-          name: trivy-vulnerability-report
-          path: trivy-report.txt
+          name: trivy-reports
+          path: |
+            trivy-report.txt
+            trivy-gradle-report.txt
