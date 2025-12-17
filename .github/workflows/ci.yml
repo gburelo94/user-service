@@ -1,4 +1,4 @@
-name: CI Workflow with Trivy
+name: CI Workflow with Trivy for Gradle
 
 on:
   workflow_dispatch:
@@ -29,6 +29,9 @@ jobs:
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2g"
 
+      - name: Generate dependency report with Gradle
+        run: ./gradlew dependencies > gradle-dependencies-report.txt
+
       - name: Verify Build Output
         run: |
           echo "Verificando archivos generados tras la compilación..."
@@ -47,21 +50,21 @@ jobs:
           echo "Descargando e instalando Trivy con el script oficial..."
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
 
-      - name: Run Trivy Vulnerability Scan on Build Directory
-        if: success() && (hashFiles('./build/**') != '')
+      - name: Run Trivy Vulnerability Scan (Gradle dependencies)
         run: |
-          echo "Ejecutando Trivy en ./build..."
-          trivy fs --scanners vuln --severity CRITICAL,HIGH ./build | tee trivy-report.txt
+          echo "Escaneando dependencias de Gradle en ~/.gradle..."
+          trivy fs --scanners vuln --severity CRITICAL,HIGH ~/.gradle | tee trivy-gradle-cache-report.txt
 
-      - name: Run Trivy Vulnerability Scan on Gradle Config
+      - name: Run Trivy Vulnerability Scan (Build artefacts)
         run: |
-          echo "Analizando dependencias basadas en build.gradle..."
-          trivy --scanners vuln --severity CRITICAL,HIGH --file build.gradle | tee trivy-gradle-report.txt
+          echo "Escaneando artefactos compilados en ./build/libs..."
+          trivy fs --scanners vuln --severity CRITICAL,HIGH ./build/libs | tee trivy-build-libs-report.txt
 
       - name: Upload Trivy Reports
         uses: actions/upload-artifact@v4
         with:
           name: trivy-reports
           path: |
-            trivy-report.txt
-            trivy-gradle-report.txt
+            trivy-gradle-cache-report.txt
+            trivy-build-libs-report.txt
+            gradle-dependencies-report.txt
