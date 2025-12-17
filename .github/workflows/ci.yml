@@ -9,13 +9,12 @@ on:
 
 jobs:
   build:
-    name: Build and Test
+    name: Build, Test and Dependency Analysis
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -31,39 +30,26 @@ jobs:
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2g"
 
-  dependency-check:
-    name: OWASP Dependency-Check
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      # Dependency-Check analysis
+      - name: Prepare dependency-check directories
+        run: mkdir -p build/reports/dependency-check dependency-check-data
 
-      - name: Prepare dependency-check dirs
+      - name: Download OWASP Dependency-Check CLI
         run: |
-          echo "Preparando directorios para OWASP Dependency-Check"
-          mkdir -p ./dependency-check-data
-          mkdir -p ./build/reports/dependency-check
+          echo "Descargando OWASP Dependency-Check CLI..."
+          curl -L https://github.com/jeremylong/DependencyCheck/releases/download/v8.2.1/dependency-check-8.2.1-release.zip -o dependency-check.zip
+          unzip dependency-check.zip -d dependency-check-cli
+          chmod +x dependency-check-cli/bin/dependency-check.sh
 
-      - name: Clean Dependency-Check Cache (Force Reset)
+      - name: Run OWASP Dependency-Check CLI
         run: |
-          echo "Eliminando el directorio dependency-check-data para evitar conflictos..."
-          rm -rf ./dependency-check-data
-
-      - name: Pull OWASP Dependency-Check Docker image
-        run: docker pull owasp/dependency-check:latest
-
-      - name: Run OWASP Dependency-Check
-        run: |
-          docker run --rm \
-            -v "${{ github.workspace }}:/src" \
-            -v "${{ github.workspace }}/dependency-check-data:/usr/share/dependency-check/data" \
-            -v "${{ github.workspace }}/build/reports/dependency-check:/report" \
-            owasp/dependency-check:latest \
-            --scan "/src" \
-            --project "microservices-springboot" \
+          echo "Iniciando análisis de dependencias..."
+          ./dependency-check-cli/bin/dependency-check.sh \
+            --scan "./src" \
             --failOnCVSS 7.0 \
-            --out /report
+            --format ALL \
+            --out "./build/reports/dependency-check" \
+            --data "./dependency-check-data"
 
       - name: Upload dependency-check report
         uses: actions/upload-artifact@v4
