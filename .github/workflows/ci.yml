@@ -1,4 +1,4 @@
-name: CI
+name: CI Workflow
 
 on:
   workflow_dispatch:
@@ -9,9 +9,8 @@ on:
 
 jobs:
   build:
-    name: Build, Test and Dependency Analysis
+    name: Build and Test
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -30,11 +29,23 @@ jobs:
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2g"
 
-      # Dependency-Check analysis
+  dependency-check:
+    name: OWASP Dependency-Check
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Prepare dependency-check directories
         run: mkdir -p build/reports/dependency-check dependency-check-data
 
-      - name: Download and Inspect OWASP Dependency-Check CLI
+      - name: List dependencies to be analyzed
+        run: |
+          echo "Listando archivos a escanear..."
+          find ./src -type f \( -name "*.jar" -o -name "*.war" -o -name "*.ear" -o -name "*.pom" \)
+
+      - name: Download and Set up OWASP Dependency-Check CLI
         run: |
           echo "Descargando OWASP Dependency-Check CLI..."
           curl -L https://github.com/jeremylong/DependencyCheck/releases/download/v8.2.1/dependency-check-8.2.1-release.zip -o dependency-check.zip
@@ -48,8 +59,28 @@ jobs:
           echo "Extrayendo el contenido del archivo..."
           unzip -q dependency-check.zip -d dependency-check-cli
 
-          echo "Listando contenido descomprimido para inspección..."
-          ls -R dependency-check-cli
-
-          echo "Buscando dependency-check.sh..."
+          echo "Verificando la existencia del script de inicio..."
           find dependency-check-cli -name "dependency-check.sh"
+
+          chmod +x dependency-check-cli/bin/dependency-check.sh
+
+      - name: Run OWASP Dependency-Check CLI
+        run: |
+          echo "Ejecutando OWASP Dependency-Check..."
+          ./dependency-check-cli/bin/dependency-check.sh \
+            --scan "./src" \
+            --failOnCVSS 7.0 \
+            --format ALL \
+            --log "./build/reports/dependency-check/owasp-dependency-check.log" \
+            --out "./build/reports/dependency-check"
+
+      - name: Check for generated Dependency-Check reports
+        run: |
+          echo "Verificando reportes generados..."
+          ls -R ./build/reports/dependency-check || echo "No se encontraron reportes generados."
+
+      - name: Upload dependency-check report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: build/reports/dependency-check
