@@ -29,6 +29,11 @@ jobs:
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2g"
 
+      - name: Verify Build Output
+        run: |
+          echo "Verificando archivos generados tras la compilación..."
+          ls -R ./build || echo "No se generaron artefactos en ./build"
+
   trivy:
     name: Vulnerability Scan with Trivy
     runs-on: ubuntu-latest
@@ -42,12 +47,8 @@ jobs:
           echo "Descargando e instalando Trivy con el script oficial..."
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
 
-      - name: List build directory contents
-        run: |
-          echo "Listando archivos bajo ./build..."
-          find ./build -type f
-
-      - name: Run Trivy Vulnerability Scan
+      - name: Run Trivy Vulnerability Scan on Build Directory
+        if: success() && (hashFiles('./build/**') != '')
         run: |
           echo "Ejecutando Trivy en ./build..."
           trivy fs --scanners vuln --severity CRITICAL,HIGH ./build | tee trivy-report.txt
@@ -55,7 +56,7 @@ jobs:
       - name: Run Trivy Vulnerability Scan on Gradle Config
         run: |
           echo "Analizando dependencias basadas en build.gradle..."
-          trivy fs --scanners vuln --severity CRITICAL,HIGH --language-specific ./build.gradle | tee trivy-gradle-report.txt
+          trivy --scanners vuln --severity CRITICAL,HIGH --file build.gradle | tee trivy-gradle-report.txt
 
       - name: Upload Trivy Reports
         uses: actions/upload-artifact@v4
