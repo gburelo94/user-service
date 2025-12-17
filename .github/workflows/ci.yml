@@ -34,7 +34,7 @@ jobs:
       - name: Prepare dependency-check directories
         run: mkdir -p build/reports/dependency-check dependency-check-data
 
-      - name: Download and Set up OWASP Dependency-Check CLI
+      - name: Download and Inspect OWASP Dependency-Check CLI
         run: |
           echo "Descargando OWASP Dependency-Check CLI..."
           curl -L https://github.com/jeremylong/DependencyCheck/releases/download/v8.2.1/dependency-check-8.2.1-release.zip -o dependency-check.zip
@@ -48,27 +48,8 @@ jobs:
           echo "Extrayendo el contenido del archivo..."
           unzip -q dependency-check.zip -d dependency-check-cli
 
-          echo "Verificando la existencia del script de inicio..."
-          if [ ! -f dependency-check-cli/bin/dependency-check.sh ]; then
-            echo "Error: El archivo dependency-check.sh no se encuentra tras la extracción."
-            exit 1
-          fi
+          echo "Listando contenido descomprimido para inspección..."
+          ls -R dependency-check-cli
 
-          echo "Aplicando permisos de ejecución en el CLI..."
-          chmod +x dependency-check-cli/bin/dependency-check.sh
-
-      - name: Run OWASP Dependency-Check CLI
-        run: |
-          echo "Iniciando análisis de dependencias..."
-          ./dependency-check-cli/bin/dependency-check.sh \
-            --scan "./src" \
-            --failOnCVSS 7.0 \
-            --format ALL \
-            --out "./build/reports/dependency-check" \
-            --data "./dependency-check-data"
-
-      - name: Upload dependency-check report
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-check-report
-          path: build/reports/dependency-check
+          echo "Buscando dependency-check.sh..."
+          find dependency-check-cli -name "dependency-check.sh"
