@@ -34,11 +34,27 @@ jobs:
       - name: Prepare dependency-check directories
         run: mkdir -p build/reports/dependency-check dependency-check-data
 
-      - name: Download OWASP Dependency-Check CLI
+      - name: Download and Set up OWASP Dependency-Check CLI
         run: |
           echo "Descargando OWASP Dependency-Check CLI..."
           curl -L https://github.com/jeremylong/DependencyCheck/releases/download/v8.2.1/dependency-check-8.2.1-release.zip -o dependency-check.zip
-          unzip dependency-check.zip -d dependency-check-cli
+
+          echo "Validando que el archivo ZIP se haya descargado..."
+          if [ ! -f dependency-check.zip ]; then
+            echo "Error: No se pudo descargar el archivo ZIP de Dependency-Check."
+            exit 1
+          fi
+
+          echo "Extrayendo el contenido del archivo..."
+          unzip -q dependency-check.zip -d dependency-check-cli
+
+          echo "Verificando la existencia del script de inicio..."
+          if [ ! -f dependency-check-cli/bin/dependency-check.sh ]; then
+            echo "Error: El archivo dependency-check.sh no se encuentra tras la extracción."
+            exit 1
+          fi
+
+          echo "Aplicando permisos de ejecución en el CLI..."
           chmod +x dependency-check-cli/bin/dependency-check.sh
 
       - name: Run OWASP Dependency-Check CLI
